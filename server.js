@@ -99,7 +99,7 @@ function unRegister(id) {
 }
 
 function register(id, userId, name, ws) {
-  if (users.find(v => +v.userId === +userId && +v.id === +id)) {
+  if (users.find(v => v.userId === userId && +v.id === +id)) {
     return onError(ws, 'registerResponse', `User ${name} already registred for session ${id}`);
   }
   users.push({
@@ -115,7 +115,7 @@ function call(id, toId, sdpOffer, ws) {
   clearCandidatesQueue(id);
   const from = users.find(v => +v.id === +id);
   from.sdpOffer = sdpOffer;
-  const to = users.filter(v => +v.userId === +toId) || [];
+  const to = users.filter(v => v.userId === toId) || [];
   if (to.length === 0) {
     return onError(ws, 'callResponse', `User ${to} is not registred`);
   }
@@ -137,7 +137,6 @@ function CallMediaPipeline() {
 }
 
 CallMediaPipeline.prototype.createPipeline = function(to, from) {
-  const self = this;
   return new Promise((resolve, reject) => {
     if (!kurentoClient) {
       return reject('kurento server not found');
@@ -147,14 +146,14 @@ CallMediaPipeline.prototype.createPipeline = function(to, from) {
         pipeline.release();
         return reject(error);
       }
-      return pipeline.create('WebRtcEndpoint', (error, toWebRtcEndpoint) => {
-        if (error) {
+      return pipeline.create('WebRtcEndpoint', (errorE, toWebRtcEndpoint) => {
+        if (errorE) {
           pipeline.release();
-          reject(error);
+          reject(errorE);
           return;
         }
         if (candidatesQueue[to.id]) {
-          while(candidatesQueue[to.id].length) {
+          while (candidatesQueue[to.id].length) {
             const candidate = candidatesQueue[to.id].shift();
             if (candidate) {
               toWebRtcEndpoint.addIceCandidate(candidate);
@@ -164,17 +163,17 @@ CallMediaPipeline.prototype.createPipeline = function(to, from) {
 
         toWebRtcEndpoint.on('OnIceCandidate', (event) => {
           const candidate = kurento.getComplexType('IceCandidate')(event.candidate);
-          send(to.ws, {id: 'iceCandidate', candidate: candidate});
+          send(to.ws, {id: 'iceCandidate', candidate});
         });
 
-        pipeline.create('WebRtcEndpoint', (error, fromWebRtcEndpoint) => {
-          if (error) {
+        pipeline.create('WebRtcEndpoint', (errorE2, fromWebRtcEndpoint) => {
+          if (errorE2) {
             pipeline.release();
-            reject(error);
+            reject(errorE2);
             return;
           }
           if (candidatesQueue[from.id]) {
-            while(candidatesQueue[from.id].length) {
+            while (candidatesQueue[from.id].length) {
               const candidate = candidatesQueue[from.id].shift();
               if (candidate) {
                 fromWebRtcEndpoint.addIceCandidate(candidate);
