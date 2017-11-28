@@ -1,13 +1,11 @@
-const path = require('path');
-const url = require('url');
 const express = require('express');
-const ws = require('ws');
+const wsServer = require('ws');
 const kurento = require('kurento-client');
 const http = require('http');
 
 const app = express();
 const port = process.env.NODE_PORT || 3000;
-const kurento_ws = process.env.NODE_KURENTO || 'wss://localhost/kurento';
+const kurentoWs = process.env.NODE_KURENTO || 'wss://localhost/kurento';
 /*
  * Definition of global variables.
  */
@@ -17,31 +15,31 @@ let users = [];
 const pipelines = {};
 const candidatesQueue = {};
 
-kurento(kurento_ws, function(error, _kurentoClient) {
+kurento(kurentoWs, (error, _kurentoClient) => {
   if (error) {
-    throw new Error(`Not find media server at address ${kurento_ws}`, error);
+    throw new Error(`Not find media server at address ${kurentoWs}`, error);
   }
   kurentoClient = _kurentoClient;
 });
 
 
 function nextUniqueId() {
-  idCounter++;
+  idCounter = (idCounter + 1);
   return idCounter.toString();
 }
 
 const server = http.createServer(app);
 
-server.listen(port, function () {
+server.listen(port, () => {
   console.log(`Signal server started at port http://localhost:${port}`);
 });
 
-const wss = new ws.Server({
+const wss = new wsServer.Server({
   server,
-  path: '/call'
+  path: '/call',
 });
 
-wss.on('connection', function(ws) {
+wss.on('connection', (ws) => {
   const sessionId = nextUniqueId();
   console.log(`Connection received with sessionId: ${sessionId}`);
 
@@ -60,29 +58,30 @@ wss.on('connection', function(ws) {
     const message = JSON.parse(_message);
     console.log(`Connection ${sessionId} received message `, message);
     switch (message.id) {
-    case 'register':
-      register(sessionId, message.userId, message.name, ws);
+      case 'register':
+        register(sessionId, message.userId, message.name, ws);
       break;
-    case 'unregister':
-      unRegister(sessionId);
-      break;
-    case 'call':
-      call(sessionId, message.to, message.sdpOffer, ws);
-      break;
-    case 'incomingCallResponse':
-      incomingCallResponse(sessionId, message.to, message.response, message.sdpOffer, ws);
-    case 'stop':
-      stop(sessionId);
-      break;
-    case 'onIceCandidate':
-      onIceCandidate(sessionId, message.candidate);
-      break;
-    default:
-      ws.send(JSON.stringify({
-        id : 'error',
-        message : 'Invalid message ' + message
-      }));
-      break;
+      case 'unregister':
+        unRegister(sessionId);
+        break;
+      case 'call':
+        call(sessionId, message.to, message.sdpOffer, ws);
+        break;
+      case 'incomingCallResponse':
+        incomingCallResponse(sessionId, message.to, message.response, message.sdpOffer, ws);
+        break;
+      case 'stop':
+        stop(sessionId);
+        break;
+      case 'onIceCandidate':
+        onIceCandidate(sessionId, message.candidate);
+        break;
+      default:
+        ws.send(JSON.stringify({
+          id: 'error',
+          message: `Invalid message ${message}`,
+        }));
+        break;
     }
   });
 });
@@ -107,7 +106,7 @@ function register(id, userId, name, ws) {
     id,
     userId,
     name,
-    ws
+    ws,
   });
   return send(ws, {id: 'registerResponse', response: 'accepted'});
 }
@@ -125,9 +124,9 @@ function call(id, toId, sdpOffer, ws) {
   const message = {
     id: 'incomingCall',
     from: from.name,
-    sessionId: id
+    sessionId: id,
   };
-  return to.forEach(s => {
+  return to.forEach((s) => {
     send(s.ws, message);
   });
 }
@@ -184,20 +183,20 @@ CallMediaPipeline.prototype.createPipeline = function(to, from) {
           }
 
           fromWebRtcEndpoint.on('OnIceCandidate', (event) => {
-            var candidate = kurento.getComplexType('IceCandidate')(event.candidate);
-            send(from.ws, {id: 'iceCandidate', candidate: candidate});
+            const candidate = kurento.getComplexType('IceCandidate')(event.candidate);
+            send(from.ws, {id: 'iceCandidate', candidate});
           });
 
-          toWebRtcEndpoint.connect(fromWebRtcEndpoint, (error) => {
-            if (error) {
+          toWebRtcEndpoint.connect(fromWebRtcEndpoint, (error2) => {
+            if (error2) {
               pipeline.release();
-              reject(error);
+              reject(error2);
               return;
             }
-            fromWebRtcEndpoint.connect(toWebRtcEndpoint, (error) => {
-              if (error) {
+            fromWebRtcEndpoint.connect(toWebRtcEndpoint, (error3) => {
+              if (error3) {
                 pipeline.release();
-                reject(error);
+                reject(error3);
                 return;
               }
               this.pipeline = pipeline;
@@ -244,9 +243,9 @@ function incomingCallResponse(id, toId, response, sdpOffer, ws) {
           if (error) {
             throw error;
           }
-          pipeline.generateSdpAnswer(user.id, user.sdpOffer, (error, fromSdpAnswer) => {
-            if (error) {
-              throw error;
+          pipeline.generateSdpAnswer(user.id, user.sdpOffer, (error2, fromSdpAnswer) => {
+            if (error2) {
+              throw error2;
             }
             send(user.ws, {id: 'startCommunication', sdpOffer: fromSdpAnswer});
             send(to.ws, {id: 'callResponse', response: 'accepted', sdpOffer: toSdpAnswer});
@@ -257,11 +256,11 @@ function incomingCallResponse(id, toId, response, sdpOffer, ws) {
         if (pipeline) {
           pipeline.release();
         }
-        onError(from.ws, 'callResponse', error);
+        onError(user.ws, 'callResponse', error);
+        onError(to.ws, 'callResponse', error);
       });
-  } else {
-    return send(user.ws, {id: 'callResponse', response: 'rejected', message: 'user declined'});
   }
+  return send(to.ws, {id: 'callResponse', response: 'rejected', message: 'user declined'});
 }
 
 function clearCandidatesQueue(sessionId) {
@@ -275,19 +274,19 @@ function stop(sessionId) {
     return;
   }
 
-  var pipeline = pipelines[sessionId];
+  const pipeline = pipelines[sessionId];
   delete pipelines[sessionId];
   pipeline.release();
-  var stopperUser = users.find(v => +v.id === +sessionId);
-  var stoppedUser = users.find(v => +v.id === +stopperUser.peer);
+  const stopperUser = users.find(v => +v.id === +sessionId);
+  const stoppedUser = users.find(v => +v.id === +stopperUser.peer);
   stopperUser.peer = null;
 
   if (stoppedUser) {
     stoppedUser.peer = null;
     delete pipelines[stoppedUser.id];
-    var message = {
+    const message = {
       id: 'stopCommunication',
-      message: 'remote user hanged out'
+      message: 'remote user hanged out',
     };
     send(stoppedUser.ws, message);
   }
@@ -295,16 +294,13 @@ function stop(sessionId) {
   clearCandidatesQueue(sessionId);
 }
 
-let ci = 1;
 function onIceCandidate(sessionId, _candidate) {
-  ci++;
-  var candidate = kurento.getComplexType('IceCandidate')(_candidate);
+  const candidate = kurento.getComplexType('IceCandidate')(_candidate);
 
   if (pipelines[sessionId] && pipelines[sessionId].webRtcEndpoint && pipelines[sessionId].webRtcEndpoint[sessionId]) {
-    var webRtcEndpoint = pipelines[sessionId].webRtcEndpoint[sessionId];
+    const webRtcEndpoint = pipelines[sessionId].webRtcEndpoint[sessionId];
     webRtcEndpoint.addIceCandidate(candidate);
-  }
-  else {
+  } else {
     if (!candidatesQueue[sessionId]) {
       candidatesQueue[sessionId] = [];
     }
