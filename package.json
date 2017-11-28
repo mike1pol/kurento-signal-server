@@ -1,0 +1,29 @@
+{
+  "name": "signal-server",
+  "version": "1.0.0",
+  "description": "Kurento signal server",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mike1pol/kurento-signal-server.git"
+  },
+  "author": "Mikhail Poluboyarinov <mikle.sol@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mike1pol/kurento-signal-server/issues"
+  },
+  "homepage": "https://github.com/mike1pol/kurento-signal-server#readme",
+  "dependencies": {
+    "express": "^4.16.2",
+    "kurento-client": "^6.6.0"
+  },
+  "devDependencies": {
+    "eslint": "^4.9.0",
+    "eslint-config-airbnb-base": "^12.1.0",
+    "eslint-plugin-import": "^2.8.0"
+  }
+}
