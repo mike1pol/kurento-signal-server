@@ -87,7 +87,7 @@ wss.on('connection', (ws) => {
 });
 
 function onError(ws, id, message) {
-  ws.send(JSON.stringify({id, reponse: 'rejected', message}));
+  ws.send(JSON.stringify({id, response: 'rejected', message}));
 }
 
 function send(ws, message) {
