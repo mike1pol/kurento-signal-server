@@ -76,6 +76,9 @@ function unRegister(id) {
 function call(id, toId, sdpOffer, ws) {
   clearCandidatesQueue(id);
   const from = users.find(v => +v.id === +id);
+  if (!from) {
+    return onError(ws, 'callResponse', 'User not found');
+  }
   from.sdpOffer = sdpOffer;
   const to = users.filter(v => v.userId === toId) || [];
   if (to.length === 0) {
