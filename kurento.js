@@ -27,7 +27,7 @@ function send(ws, message) {
 
 function register(id, userId, name, ws) {
   if (users.find(v => v.userId === userId && +v.id === +id)) {
-    return onError(ws, 'registerResponse', `User ${name} already registred for session ${id}`);
+    return onError(ws, 'registerResponse', `User ${name} already registred for this session`);
   }
   users.push({
     id,
@@ -82,7 +82,7 @@ function call(id, toId, sdpOffer, ws) {
   from.sdpOffer = sdpOffer;
   const to = users.filter(v => v.userId === toId) || [];
   if (to.length === 0) {
-    return onError(ws, 'callResponse', `User ${toId} is not registred`);
+    return onError(ws, 'callResponse', 'User is offline');
   }
   const message = {
     id: 'incomingCall',
@@ -105,33 +105,27 @@ function incomingCallResponse(id, toId, response, message, sdpOffer, ws) {
   user.peer = to.id;
   to.peer = user.id;
   if (response === 'accept') {
-    console.log('accept');
     const pipeline = new CallMediaPipeline(kurentoClient, candidatesQueue, send);
     pipelines[user.id] = pipeline;
     pipelines[to.id] = pipeline;
     return pipeline.createPipeline(to, user)
       .then(() => {
-        console.log('pipeline created');
         pipeline.generateSdpAnswer(to.id, to.sdpOffer, (error, toSdpAnswer) => {
-          console.log('offer to generated');
           if (error) {
             console.error(error);
             throw error;
           }
           pipeline.generateSdpAnswer(user.id, user.sdpOffer, (error2, fromSdpAnswer) => {
-            console.log('offer from generated');
             if (error2) {
               console.error(error2);
               throw error2;
             }
-            console.log('send offers');
             send(user.ws, {id: 'startCommunication', sdpOffer: fromSdpAnswer});
             send(to.ws, {id: 'callResponse', response: 'accepted', sdpOffer: toSdpAnswer});
           });
         });
       })
       .catch((error) => {
-        console.log(error);
         if (pipeline) {
           pipeline.release();
         }
