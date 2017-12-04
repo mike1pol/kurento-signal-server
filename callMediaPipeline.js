@@ -15,12 +15,18 @@ CallMediaPipeline.prototype.createPipeline = function (to, from) {
     }
     return this.kurentoClient.create('MediaPipeline', (error, pipeline) => {
       if (error) {
-        pipeline.release();
+        if (pipeline) {
+          pipeline.release();
+        }
+        console.error(error);
         return reject(error);
       }
       return pipeline.create('WebRtcEndpoint', (errorE, toWebRtcEndpoint) => {
         if (errorE) {
-          pipeline.release();
+          if (pipeline) {
+            pipeline.release();
+          }
+          console.error(errorE);
           reject(errorE);
           return;
         }
@@ -40,7 +46,10 @@ CallMediaPipeline.prototype.createPipeline = function (to, from) {
 
         pipeline.create('WebRtcEndpoint', (errorE2, fromWebRtcEndpoint) => {
           if (errorE2) {
-            pipeline.release();
+            if (pipeline) {
+              pipeline.release();
+            }
+            console.error(errorE2);
             reject(errorE2);
             return;
           }
@@ -60,13 +69,19 @@ CallMediaPipeline.prototype.createPipeline = function (to, from) {
 
           toWebRtcEndpoint.connect(fromWebRtcEndpoint, (error2) => {
             if (error2) {
-              pipeline.release();
+              if (pipeline) {
+                pipeline.release();
+              }
+              console.error(error2);
               reject(error2);
               return;
             }
             fromWebRtcEndpoint.connect(toWebRtcEndpoint, (error3) => {
               if (error3) {
-                pipeline.release();
+                if (pipeline) {
+                  pipeline.release();
+                }
+                console.error(error3);
                 reject(error3);
                 return;
               }
