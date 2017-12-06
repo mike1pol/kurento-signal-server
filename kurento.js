@@ -104,6 +104,9 @@ function incomingCallResponse(id, toId, response, message, sdpOffer, ws) {
   }
   user.peer = to.id;
   to.peer = user.id;
+  users
+    .filter(v => v.userId === user.userId && v.id !== user.id)
+    .forEach(s => send(s.ws, {id: 'incomingCallAnswered'}));
   if (response === 'accept') {
     const pipeline = new CallMediaPipeline(kurentoClient, candidatesQueue, send);
     pipelines[user.id] = pipeline;
